@@ -55,8 +55,12 @@ pip install -r requirements.txt
 ```
 
 4. Создать .env файл:
-регистрируемся на сайте:  https://ftc-events.firstinspires.org
-И получаем: 
+регистрируемся на сайте:
+```
+https://ftc-events.firstinspires.org
+```
+
+получаем: 
 ```
 FTC_USER_NAME=ваш_логин
 FTC_TOKEN=ваш_api_ключ
