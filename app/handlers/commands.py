@@ -114,7 +114,7 @@ async def cmd_compare(message: Message, command: CommandObject):
         await msg.edit_text("❌ Не удалось получить данные по одной из команд")
         return
     
-    msg = await message.edit_text("🔍 Думаю...")
+    await msg.edit_text("🔍 Думаю...")
     s1, s2 = await api_parsing.compare_stats(t1, t2)
 
     text = (
