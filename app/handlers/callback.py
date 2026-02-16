@@ -40,3 +40,58 @@ async def chat_menu(callback: CallbackQuery):
     with open('messages/help.txt', 'r', encoding='utf-8') as file:
         await callback.message.edit_text(file.read())
 
+@router1.callback_query(F.data == "event_code_info")
+async def event_code_info(callback: CallbackQuery):
+    text = """📌 Что такое Event Code?
+
+В соревнованиях FIRST Tech Challenge каждый турнир имеет уникальный код — Event Code.
+
+Он используется для получения матчей, рейтингов и результатов через API.
+
+Пример:
+/matches 24783 KZCMPJNB2 
+                                        ^
+                                        |
+                               event code
+"""
+    await callback.message.edit_text(text, reply_markup=key.link_to_matches)
+    await callback.answer()
+
+@router1.callback_query(F.data == "team_number_info")
+async def team_number_info(callback: CallbackQuery):
+    text = """🔢 Что такое номер команды?
+
+В FIRST Tech Challenge каждая команда имеет уникальный номер.
+
+Он используется для поиска информации о команде и её матчах.
+
+Пример:
+/matches 24783 KZCMPJNB2
+
+⚠️ Номер команды должен быть числом.
+"""
+    await callback.message.edit_text(text, reply_markup=key.link_to_matches)
+    await callback.answer()
+
+@router1.callback_query(F.data == "event_code_info")
+async def event_code_info(callback: CallbackQuery):
+    text = """📌 Что такое Event Code?
+
+В соревнованиях FIRST Tech Challenge каждый турнир имеет уникальный код — Event Code.
+
+Он используется для получения матчей, рейтингов и результатов через API.
+
+Пример:
+/matches 24783 KZCMPJNB2 
+                                        ^
+                                        |
+                               event code
+"""
+    await callback.message.edit_text(text, reply_markup=key.link_to_matches)
+    await callback.answer()
+
+@router1.callback_query(F.data == "back_team_events")
+async def team_number_info(callback: CallbackQuery):
+    text = "Матчи не найдены или неправильный ивент код. Попробуйте снова."
+    await callback.message.edit_text(text, reply_markup=key.both_team_number_and_event_code)
+    await callback.answer()

@@ -27,6 +27,19 @@ fll_link = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="главное меню" , callback_data="main_menu")]
 ])
 
+
+both_team_number_and_event_code = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="ℹ️ Что такое Event Code?", callback_data="event_code_info")],
+    [InlineKeyboardButton(text="🔢 Что такое номер команды?", callback_data="team_number_info")],
+    [InlineKeyboardButton(text="главное меню" , callback_data="main_menu")]
+])
+
+link_to_matches= InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text='Инфа о матчах', url="https://ftc-events.firstinspires.org/2025/region/KZ")],
+    [InlineKeyboardButton(text="Назад <-", callback_data="back_team_events")]
+
+])
+
 async def build_values():
     keyboard = InlineKeyboardBuilder()
     for i in range(len(inline_values)):
@@ -34,16 +47,6 @@ async def build_values():
     keyboard.add(InlineKeyboardButton(text="главное меню" , callback_data="main_menu"))
     return keyboard.adjust(2).as_markup()
 
-async def create_buttons_with_link(stage):
-    if stage == "fll":
-        keyboard = InlineKeyboardBuilder()
-        keyboard.add(InlineKeyboardButton(text="fll link" , link="https://www.firstinspires.org/programs/fll/"))
-        keyboard.add(InlineKeyboardButton(text="главное меню" , callback_data="main_menu"))
-    elif stage=="ftc":
-        keyboard = InlineKeyboardBuilder()
-        keyboard.add(InlineKeyboardButton(text="fts link" , link="https://www.firstinspires.org/programs/ftc/"))
-        keyboard.add(InlineKeyboardButton(text="главное меню" , callback_data="main_menu"))
-    return keyboard.adjust(2).as_markup()
 
 
     

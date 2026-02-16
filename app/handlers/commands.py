@@ -144,4 +144,47 @@ async def cmd_links(message: Message):
     with open('messages/fll.txt', 'r', encoding='utf-8') as file:
         await message.answer(file.read(), reply_markup=key.fll_link)
 
+@router.message(Command("matches"))
+async def cmd_matches(message: Message, command: CommandObject):
+    if not command.args:
+        await message.answer("Использование: /matches <team number eventcode>", reply_markup=key.both_team_number_and_event_code)
+        return
+    values = command.args.split()
+    if len(values)!=2:
+        await message.answer("Вы должны прописать номер команды, потом через пробел, напишите код ивента.", reply_markup=key.both_team_number_and_event_code)
+        return
+    try:
+        team_number = int(values[0])
+        event_code = values[1]
+    except ValueError:
+        await message.answer("Номер команды должен быть числом")
+        return
+
+    msg = await message.answer("🔍 Ищу команду...")
+
+    try:
+        team = await api_parsing.get_team(team_number)
+
+        if team is None:
+            await msg.edit_text(f"Команда {team_number} не найдена :(\nНомер команды должен быть в диапазоне от 0 до 99999\nПопробуйте снова", reply_markup=key.both_team_number_and_event_code)
+            return
+        if team == "NoneAPI":
+                await msg.edit_text("Упс...\nПохоже произошла ошибка, попробуйте снова.", reply_markup=key.both_team_number_and_event_code)
+                return
+
+        await msg.edit_text("📊 Загружаю матчи...")
+
+        matches = await api_parsing.format_matches_of_the_team(team_number, event_code)
+
+        if not matches or matches is None:
+            await msg.edit_text("Матчи не найдены или неправильный ивент код. Попробуйте снова.", reply_markup=key.both_team_number_and_event_code)
+            return
+
+        await msg.edit_text(matches)
+
+    except Exception as e:
+        await msg.edit_text("Произошла ошибка при запросе к API 😔")
+        print("Ошибка:", e)
+
+
     

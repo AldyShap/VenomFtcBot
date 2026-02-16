@@ -1,7 +1,9 @@
 import aiohttp
 from app.config.cosy import BASE_URL, HEADERS, FTC_SEASON
 from datetime import datetime
+from pprint import pprint
 
+# ----------------------- Get team info by team number /find_team -----------------------------
 async def get_team_info(team_number: int):
     url = f"{BASE_URL}/{FTC_SEASON}/teams?teamNumber={team_number}"
 
@@ -29,18 +31,8 @@ async def get_team_info(team_number: int):
                 f"📅 Rookie year: {team['rookieYear']}"
             )
 
-async def _get(path: str):
-    url = f"{BASE_URL}/{FTC_SEASON}/{path}"
-    async with aiohttp.ClientSession(headers=HEADERS) as session:
-        async with session.get(url) as response:
-            if response.status != 200:
-                text = await response.text()
-                raise RuntimeError(f"API {response.status}: {text}")
 
-            return await response.json()
-
-
-
+# ---------------------- Get all events by team number -------------------------
 async def get_team_events(team_number: int):
         data = await _get(f"events?teamNumber={team_number}")
 
@@ -49,54 +41,75 @@ async def get_team_events(team_number: int):
 
         # последний ивент
         event = await get_latest_event(data["events"])
+        pprint(event)
         # pprint(event)
         return event
 
 
-async def get_matches(event_code: str):
-    data = await _get(f"matches/{event_code}")
 
-    if "matches" not in data:
-        raise ValueError("Матчи не найдены")
+# --------------------- Get matches by event code -------------------
+async def get_team(team_number):
+    async with aiohttp.ClientSession(headers=HEADERS) as session:
+        async with session.get(f'{BASE_URL}/{FTC_SEASON}/teams?teamNumber={team_number}') as response:
+            if response.status == 400:
+                return None
+            if response.status != 200:
+                return "NoneAPI"
+            return await response.json()
 
-    return data["matches"]
 
-async def get_team_match_info(match, team_number):
-    for t in match['teams']:
-        if t.get("teamNumber") == team_number:
-            station = t.get("station")
-            if station.startswith("Red"):
-                color = "Red"
-                score = match.get('scoreRedFinal')
-            else:
-                color = "Blue"
-                score = match.get('scoreBluefinal')
-            return color, score
-    return None
+        
+async def get_matches_by_code(event_code):
+    # event_code = "KZCMPJNB2" event code of Central Asia FIRST Championship
+    async with aiohttp.ClientSession(headers=HEADERS) as session:
+        async with session.get(f'{BASE_URL}/{FTC_SEASON}/matches/{event_code}') as response:
+            if response.status == 404:
+                return None
+            return await response.json()
 
-async def get_ranking(event_code: str):
-    data = await _get(f"rankings/{event_code}")
-    print(data)
-
-    if "rankings" not in data or not data['rankings']:
-        return "Error: Rankings wasn't found; Возможно, рейтинг ещё не опубликован"
-    
-    return data['rankings']
-
-async def find_team_ranking(rankings: list, team_number: int):
-    if rankings == "Error: Rankings wasn't found; Возможно, рейтинг ещё не опубликован":
+async def format_matches_of_the_team(team_number, event_code):
+    matches = []
+    matches_got = await get_matches_by_code(event_code)
+    if matches_got is None:
         return None
-    for r in rankings:
-        if r['teamNumber'] == team_number:
-            return r
-    return None
+    for i in matches_got.get('matches'):
+        for j in i.get('teams', []):
+            if j['teamNumber']==team_number:
+                pprint(i)
+                d = {
+                    "matchNumber": i.get("matchNumber"),
+                    "description": i.get("description"),
+                    "Level": i.get('tournamentLevel'),
+                    "alliance": j.get("station")[:-1]
+                }
+                partner = await get_partner_of_the_matches(d['alliance'], i, team_number)
+                d['partner'] = partner
+                matches.append(d)
+    text = await get_beautiful_text_match(matches, team_number)
+    return text
+            
+async def get_partner_of_the_matches(station, match, team_number):
+    if station.startswith("Red"):
+        for j in match.get('teams', []):
+            if j['station'].startswith("Red") and j['teamNumber']!=team_number:
+                d = j.get('teamNumber')
 
-async def get_latest_event(events: list):
-    return max(
-        events,
-        key=lambda e: datetime.fromisoformat(e["dateEnd"])
-    )
+                return d
+    else:
+        for j in match.get('teams', []):
+            if j['station'].startswith("Blue") and j['teamNumber']!=team_number:
+                d = j.get('teamNumber')
+                
+                return d
+            
+async def get_beautiful_text_match(matches, team_number):
+    team_name = await get_team(team_number)
+    text=f"Вот список матчей команды {team_number} ({team_name['teams'][0]['nameShort']})\n"
+    for i in matches:
+        text += f"Номер матча: {i['matchNumber']}\nЦвет команды: {i['alliance']}\nСоюзник: {i['partner']}\nОписание: {i['description']}\nУровень: {i['Level']}\n{'--'*30}\n"
+    return text
 
+# -------------------------- Get ranking of the team by event code ------------------------------------
 async def get_team_ranking(team_number: int):
     event = await get_team_events(team_number)
     event_code = event["code"] 
@@ -123,7 +136,7 @@ async def get_team_ranking(team_number: int):
         f"📊 Avg Score: {team_rank.get('sortOrder2', '—')}"
     )
 
-
+# ------------------------ Get ranking of the team for /compare -----------------------------
 async def get_team_ranking_compare(team_number: int):
     event = await get_team_events(team_number)
     event_code = event["code"]
@@ -144,6 +157,7 @@ async def get_team_ranking_compare(team_number: int):
         "avgScore": team["sortOrder2"]
     }
 
+# ------------------------------- Helper method for /compare --------------------------
 async def compare_stats(a, b):
     score_a = 0
     score_b = 0
@@ -165,4 +179,37 @@ async def compare_stats(a, b):
 
     return score_a, score_b
 
+async def _get(path: str):
+    url = f"{BASE_URL}/{FTC_SEASON}/{path}"
+    async with aiohttp.ClientSession(headers=HEADERS) as session:
+        async with session.get(url) as response:
+            if response.status != 200:
+                text = await response.text()
+                raise RuntimeError(f"API {response.status}: {text}")
 
+            return await response.json()
+
+async def get_latest_event(events: list):
+    return max(
+        events,
+        key=lambda e: datetime.fromisoformat(e["dateEnd"])
+    )
+
+
+# ------------------- Helper method of /ranking command --------------------
+async def get_ranking(event_code: str):
+    data = await _get(f"rankings/{event_code}")
+    print(data)
+
+    if "rankings" not in data or not data['rankings']:
+        return "Error: Rankings wasn't found; Возможно, рейтинг ещё не опубликован"
+    
+    return data['rankings']
+
+async def find_team_ranking(rankings: list, team_number: int):
+    if rankings == "Error: Rankings wasn't found; Возможно, рейтинг ещё не опубликован":
+        return None
+    for r in rankings:
+        if r['teamNumber'] == team_number:
+            return r
+    return None
