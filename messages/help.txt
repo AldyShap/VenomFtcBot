@@ -12,7 +12,7 @@ Venom FTC Bot предоставляет информационные коман
 /about_us - информация о команде Venom
 /help — список доступных команд
 /find_team <team number> - найти инфу про команду по номеру
-/ranking <team number> - анализ статов команды по последнему ивенту
+/ranking <team number event_code> - анализ статов команды по последнему ивенту
 /compare <team1_number team2_number> - сравнить статы двух команд
 /matches <team_number event_code> - расписание матчей команды по коду
 

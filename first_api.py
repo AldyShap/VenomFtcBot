@@ -60,7 +60,6 @@ async def get_team(team_number):
 
         
 async def get_matches_by_code(event_code):
-    # event_code = "KZCMPJNB2" event code of Central Asia FIRST Championship
     async with aiohttp.ClientSession(headers=HEADERS) as session:
         async with session.get(f'{BASE_URL}/{FTC_SEASON}/matches/{event_code}') as response:
             if response.status == 404:
@@ -109,31 +108,59 @@ async def get_beautiful_text_match(matches, team_number):
         text += f"Номер матча: {i['matchNumber']}\nЦвет команды: {i['alliance']}\nСоюзник: {i['partner']}\nОписание: {i['description']}\nУровень: {i['Level']}\n{'--'*30}\n"
     return text
 
-# -------------------------- Get ranking of the team by event code ------------------------------------
-async def get_team_ranking(team_number: int):
-    event = await get_team_events(team_number)
-    event_code = event["code"] 
+# ----------------------- Get rankings of the match by event code --------------------------------------
+async def get_event_by_code(event_code):
+    async with aiohttp.ClientSession(headers=HEADERS) as session:
+        async with session.get(f"{BASE_URL}/{FTC_SEASON}/events?eventcode={event_code}") as response:
+            data = await response.json()
+            if not data["events"]:
+                return None # ивент код не правильный
+            return data["events"]
 
-    rankings = await get_ranking(event_code)
+async def get_ranking_by_code(event_code):
+    async with aiohttp.ClientSession(headers=HEADERS) as session:
+        async with session.get(f"{BASE_URL}/{FTC_SEASON}/rankings/{event_code}") as response:
+            if response.status == 400:
+                return None # не нашлось ranking по ивент коду (возможно не правильный)
+            data = await response.json()
+            if not data['rankings']:
+                return "not published" # не нашлось информаций в rankings (возможно не опубликован результаты)
+            
+            return data['rankings']
+        
+async def find_rankings_of_the_team(team_number, rankings):
+    pprint(rankings)
+    for i in rankings:
+        if i['teamNumber'] == team_number:
+            return i
+    return None # не нашли команду на rankings
 
-    if isinstance(rankings, str):
-        return rankings
-
-    team_rank = await find_team_ranking(rankings, team_number)
-
-    if not team_rank:
-        return "❌ Команда не найдена в рейтинге ивента"
-
+async def get_ranking_of_the_team(event_code, team_number):
+    rankings = await get_ranking_by_code(event_code)
+    if rankings is None:
+        return "❌ Ошибка: Не нашлось резултаты.\n Возможно, код ивента неправильный. Попробуйте снова."
+    
+    if rankings == "not published":
+        return "❌ Ошибка: Не нашлось резултаты.\n Возможно, результаты не еше не опубликованы. Попробуйте снова."
+    
+    event = await get_event_by_code(event_code)
+    if event is None:
+        return "❌ Ошибка: Не нашлось резултатов.\n Возможно, код ивента неправильный. Попробуйте снова."
+    
+    team_ranking = await find_rankings_of_the_team(team_number, rankings)
+    if team_ranking is None:
+        return f"❌ Ошибка: Не нашлось команды {team_number} в ивенте. Попробуйте снова."
+    
     return (
-        f"📍 Последний Ивент: {event['name']} ({event_code})\n"
-        f"🏆 Ranking команды {team_rank['teamNumber']} ({team_rank['teamName']})\n\n"
-        f"🥇 Место: {team_rank['rank']}\n"
-        f"🎮 Матчи: {team_rank['matchesPlayed']}\n"
-        f"✅ Победы: {team_rank['wins']}\n"
-        f"❌ Поражения: {team_rank['losses']}\n"
-        f"⚖ Ничьи: {team_rank['ties']}\n"
-        f"🚫 DQ: {team_rank['dq']}\n"
-        f"📊 Avg Score: {team_rank.get('sortOrder2', '—')}"
+        f"📍 Ивент: {event[0]['name']} ({event_code})\n"
+        f"🏆 Ranking команды {team_ranking['teamNumber']} ({team_ranking['teamName']})\n\n"
+        f"🥇 Место: {team_ranking['rank']}\n"
+        f"🎮 Матчи: {team_ranking['matchesPlayed']}\n"
+        f"✅ Победы: {team_ranking['wins']}\n"
+        f"❌ Поражения: {team_ranking['losses']}\n"
+        f"⚖ Ничьи: {team_ranking['ties']}\n"
+        f"🚫 DQ: {team_ranking['dq']}\n"
+        f"📊 Avg Score: {team_ranking.get('sortOrder2', '—')}"
     )
 
 # ------------------------ Get ranking of the team for /compare -----------------------------
@@ -141,11 +168,12 @@ async def get_team_ranking_compare(team_number: int):
     event = await get_team_events(team_number)
     event_code = event["code"]
 
-    rankings = await get_ranking(event_code)
-    team = await find_team_ranking(rankings, team_number)
+    rankings = await get_ranking_by_code(event_code)
+    team = await find_rankings_of_the_team(team_number, rankings)
 
-    if not team:
-        return "❌ Команда не найдена в рейтинге ивента"
+    if team is None:
+        return f"❌ Ошибка: Не нашлось команды {team_number} в ивенте. Попробуйте снова."
+    
     return {
         "teamNumber": team["teamNumber"],
         "teamName": team["teamName"],
@@ -157,7 +185,22 @@ async def get_team_ranking_compare(team_number: int):
         "avgScore": team["sortOrder2"]
     }
 
-# ------------------------------- Helper method for /compare --------------------------
+async def _get(path: str):
+    url = f"{BASE_URL}/{FTC_SEASON}/{path}"
+    async with aiohttp.ClientSession(headers=HEADERS) as session:
+        async with session.get(url) as response:
+            if response.status != 200:
+                text = await response.text()
+                raise RuntimeError(f"API {response.status}: {text}")
+
+            return await response.json()
+
+async def get_latest_event(events: list):
+    return max(
+        events,
+        key=lambda e: datetime.fromisoformat(e["dateEnd"])
+    )
+
 async def compare_stats(a, b):
     score_a = 0
     score_b = 0
@@ -179,37 +222,4 @@ async def compare_stats(a, b):
 
     return score_a, score_b
 
-async def _get(path: str):
-    url = f"{BASE_URL}/{FTC_SEASON}/{path}"
-    async with aiohttp.ClientSession(headers=HEADERS) as session:
-        async with session.get(url) as response:
-            if response.status != 200:
-                text = await response.text()
-                raise RuntimeError(f"API {response.status}: {text}")
 
-            return await response.json()
-
-async def get_latest_event(events: list):
-    return max(
-        events,
-        key=lambda e: datetime.fromisoformat(e["dateEnd"])
-    )
-
-
-# ------------------- Helper method of /ranking command --------------------
-async def get_ranking(event_code: str):
-    data = await _get(f"rankings/{event_code}")
-    print(data)
-
-    if "rankings" not in data or not data['rankings']:
-        return "Error: Rankings wasn't found; Возможно, рейтинг ещё не опубликован"
-    
-    return data['rankings']
-
-async def find_team_ranking(rankings: list, team_number: int):
-    if rankings == "Error: Rankings wasn't found; Возможно, рейтинг ещё не опубликован":
-        return None
-    for r in rankings:
-        if r['teamNumber'] == team_number:
-            return r
-    return None

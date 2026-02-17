@@ -67,7 +67,9 @@ async def team_number_info(callback: CallbackQuery):
 
 Пример:
 /matches 24783 KZCMPJNB2
-
+                        ^
+                        |
+                номер команды
 ⚠️ Номер команды должен быть числом.
 """
     await callback.message.edit_text(text, reply_markup=key.link_to_matches)
@@ -85,7 +87,7 @@ async def event_code_info(callback: CallbackQuery):
 /matches 24783 KZCMPJNB2 
                                         ^
                                         |
-                               event code
+                               код ивента
 """
     await callback.message.edit_text(text, reply_markup=key.link_to_matches)
     await callback.answer()

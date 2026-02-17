@@ -65,34 +65,37 @@ async def cmd_first(message: Message, command: CommandObject):
 @router.message(Command('ranking'))
 async def cmd_ranking(message: Message, command: CommandObject):
     if not command.args:
-        await message.answer("Использование: /ranking <team number>")
+        await message.answer("Использование: /ranking <team_number event_code>")
         return 
-    
+    args = command.args.split()
+    if len(args) != 2:
+        await message.answer("Вы должны прописать номер команды, потом через пробел, напишите код ивента.", reply_markup=key.both_team_number_and_event_code)
     try:
-        team_number = int(command.args)
+        team_number = int(args[0])
+        event_code = args[1]
     except ValueError:
-        await message.answer("Номер команды должен быть числом")
+        await message.answer("Номер команды должен быть числом, код ивента текстом", reply_markup=key.both_team_number_and_event_code)
         return
     
     msg = await message.answer("🔍 Ищу команду...")
     
     try:
-        text = await api_parsing.get_team_ranking(team_number)
+        text = await api_parsing.get_ranking_of_the_team(event_code, team_number)
         print(text)
         await msg.edit_text(text)
     except Exception as e:
-        await msg.edit_text(f"Error: {e}; Возможно, рейтинг ещё не опубликован")
+        await msg.edit_text(f"Error: {e}")
         return
 
 @router.message(Command('compare'))
 async def cmd_compare(message: Message, command: CommandObject):
     if not command.args:
-        await message.answer("Использование: /compare <team number, team2_number>")
+        await message.answer("Использование: /compare <team1_number, team2_number>")
     
-    args = command.args.split()
+    args = command.args.strip().split()
 
     if len(args) != 2:
-        await message.answer("Использование: /compare <team1> <team2>")
+        await message.answer("Использование: /compare <team1_number> <team2_number>")
         return
     try:
         first_team = int(args[0])
@@ -186,5 +189,6 @@ async def cmd_matches(message: Message, command: CommandObject):
         await msg.edit_text("Произошла ошибка при запросе к API 😔")
         print("Ошибка:", e)
 
-
-    
+@router.message()
+async def catch_random(message: Message):
+    await message.answer("Извините, но я не знаю эту функцию. Если у вас проблемы: /help")
