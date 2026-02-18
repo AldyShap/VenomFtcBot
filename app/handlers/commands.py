@@ -3,7 +3,7 @@ from aiogram.types import Message
 from aiogram.filters import Command, CommandObject, CommandStart
 from app.config import keyboards as key
 import first_api as api_parsing
-
+from pprint import pprint
 router = Router()
 
 @router.message(CommandStart())
@@ -70,6 +70,7 @@ async def cmd_ranking(message: Message, command: CommandObject):
     args = command.args.split()
     if len(args) != 2:
         await message.answer("Вы должны прописать номер команды, потом через пробел, напишите код ивента.", reply_markup=key.both_team_number_and_event_code)
+        return
     try:
         team_number = int(args[0])
         event_code = args[1]
@@ -116,6 +117,18 @@ async def cmd_compare(message: Message, command: CommandObject):
     if not t1 or not t2:
         await msg.edit_text("❌ Не удалось получить данные по одной из команд")
         return
+    
+    if t1 is None:
+        return f"❌ Ошибка: Не нашлось команды {first_team} в ивенте. Попробуйте снова."
+    
+    if t2 is None:
+        return f"❌ Ошибка: Не нашлось команды {second_team} в ивенте. Попробуйте снова."
+    
+    if t1 == "not published":
+        return f"❌ Не удалось получить данные команды: {first_team}. Возможно результаты еше не опубликованы"
+    
+    if t2 == "not published":
+        return f"❌ Не удалось получить данные команды : {second_team} . Возможно результаты еше не опубликованы"
     
     await msg.edit_text("🔍 Думаю...")
     s1, s2 = await api_parsing.compare_stats(t1, t2)

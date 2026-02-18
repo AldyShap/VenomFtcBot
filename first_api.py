@@ -57,8 +57,6 @@ async def get_team(team_number):
                 return "NoneAPI"
             return await response.json()
 
-
-        
 async def get_matches_by_code(event_code):
     async with aiohttp.ClientSession(headers=HEADERS) as session:
         async with session.get(f'{BASE_URL}/{FTC_SEASON}/matches/{event_code}') as response:
@@ -120,7 +118,8 @@ async def get_event_by_code(event_code):
 async def get_ranking_by_code(event_code):
     async with aiohttp.ClientSession(headers=HEADERS) as session:
         async with session.get(f"{BASE_URL}/{FTC_SEASON}/rankings/{event_code}") as response:
-            if response.status == 400:
+            print(response.status)
+            if response.status == 404:
                 return None # не нашлось ranking по ивент коду (возможно не правильный)
             data = await response.json()
             if not data['rankings']:
@@ -136,12 +135,16 @@ async def find_rankings_of_the_team(team_number, rankings):
     return None # не нашли команду на rankings
 
 async def get_ranking_of_the_team(event_code, team_number):
+    is_team = await get_team(team_number)
+    if is_team is None:
+        return "❌ Ошибка: Не нашлось резултатов.\n Возможно, номер команды неправильный. Попробуйте снова."
+    
     rankings = await get_ranking_by_code(event_code)
     if rankings is None:
-        return "❌ Ошибка: Не нашлось резултаты.\n Возможно, код ивента неправильный. Попробуйте снова."
+        return "❌ Ошибка: Не нашлось резултатов.\n Возможно, код ивента неправильный. Попробуйте снова."
     
     if rankings == "not published":
-        return "❌ Ошибка: Не нашлось резултаты.\n Возможно, результаты не еше не опубликованы. Попробуйте снова."
+        return "❌ Ошибка: Не нашлось резултатов.\n Возможно, результаты еше не опубликованы. Попробуйте снова."
     
     event = await get_event_by_code(event_code)
     if event is None:
@@ -166,13 +169,43 @@ async def get_ranking_of_the_team(event_code, team_number):
 # ------------------------ Get ranking of the team for /compare -----------------------------
 async def get_team_ranking_compare(team_number: int):
     event = await get_team_events(team_number)
+    print("EVENTS")
+    pprint(event)
     event_code = event["code"]
+    
+    if event_code == "KZCMP":
+
+        KEREI_DIV_CODE = "KZCMPKER1"
+        ZHANIBEK_DIV_CODE = "KZCMPJNB2"
+
+        rankings_kerei = await get_ranking_by_code(KEREI_DIV_CODE)
+        rankings_zhanibek = await get_ranking_by_code(ZHANIBEK_DIV_CODE)
+
+        team_kerei = await find_rankings_of_the_team(team_number, rankings_kerei)
+        team_zhanibek = await find_rankings_of_the_team(team_number, rankings_zhanibek)
+        
+        team = team_kerei if team_zhanibek is None else team_zhanibek
+
+        return {
+        "teamNumber": team["teamNumber"],
+        "teamName": team["teamName"],
+        "rank": team["rank"],
+        "wins": team["wins"],
+        "losses": team["losses"],
+        "ties": team["ties"],
+        "matches": team["matchesPlayed"],
+        "avgScore": team["sortOrder2"]
+        }     
 
     rankings = await get_ranking_by_code(event_code)
+    pprint(rankings)
+    if rankings == "not published":
+        return "not published" #результаты не опубликованы
+    
     team = await find_rankings_of_the_team(team_number, rankings)
 
     if team is None:
-        return f"❌ Ошибка: Не нашлось команды {team_number} в ивенте. Попробуйте снова."
+        return None
     
     return {
         "teamNumber": team["teamNumber"],

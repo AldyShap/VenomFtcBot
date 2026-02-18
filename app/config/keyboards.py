@@ -35,7 +35,7 @@ both_team_number_and_event_code = InlineKeyboardMarkup(inline_keyboard=[
 ])
 
 link_to_matches= InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='Инфа о матчах', url="https://ftc-events.firstinspires.org/2025/region/KZ")],
+    [InlineKeyboardButton(text='Инфа о матчах и команд', url="https://ftc-events.firstinspires.org/2025/region/KZ")],
     [InlineKeyboardButton(text="Назад <-", callback_data="back_team_events")]
 
 ])
